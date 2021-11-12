@@ -1,0 +1,330 @@
+#!/usr/bin/env python
+# coding: utf-8
+
+# # Project: Investigate a Dataset - [TMDb movie data]
+# 
+# ## Table of Contents
+# <ul>
+# <li><a href="#intro">Introduction</a></li>
+# <li><a href="#wrangling">Data Wrangling</a></li>
+# <li><a href="#eda">Exploratory Data Analysis</a></li>
+# <li><a href="#conclusions">Conclusions</a></li>
+# </ul>
+
+# # <a id='intro'></a>
+# ## Introduction
+# 
+# ### Dataset Description 
+# 
+# This data set contains information about 10,000 movies collected from The Movie Database (TMDb), including user ratings and revenue.
+# Certain columns, like ‘cast’ and ‘genres’, contain multiple values separated by pipe (|) characters.
+# There are some odd characters in the ‘cast’ column. Don’t worry about cleaning them. You can leave them as is.
+# The final two columns ending with “_adj” show the budget and revenue of the associated movie in terms of 2010 dollars, accounting for inflation over time.
+# 
+# ### Question(s) for Analysis
+# - Who is the most Apperance Actor ?
+# - Which genres are most popular from year to year?
+# - What kinds of properties are associated with movies that have high revenues? 
+
+# # import all the packages we need .
+
+# In[1]:
+
+
+# Use this cell to set up import statements for all of the packages that you
+#   import pandas as pd
+import numpy as np
+import pandas as pd
+import operator
+import seaborn as sns
+import matplotlib.pyplot as plt
+get_ipython().run_line_magic('matplotlib', 'inline')
+
+# Remember to include a 'magic word' so that your visualizations are plotted
+#   inline with the notebook. See this page for more:
+#   http://ipython.readthedocs.io/en/stable/interactive/magics.html
+
+
+# <a id='wrangling'></a>
+# ## Data Wrangling
+# 
+# ### General actions to learn more about data ( Reading Data, Data Dimensions, Data Type )
+# ### Updating pandas to get the latest version, that will help alot later.
+
+# In[2]:
+
+
+get_ipython().system('pip install -U pandas')
+
+
+# ### load the data from tmdb-movies.scv  and show the first 5 rows to check it 
+
+# In[3]:
+
+
+# Load your data and print out a few lines. Perform operations to inspect data
+#   types and look for instances of missing or possibly errant data.
+# you must restart the kernel to solve df.head - Error 
+
+df=pd.read_csv('tmdb-movies.csv')
+df.head()
+
+
+# ## Data Dimensions
+# 
+# ### Using Data shape to know how many samples we got and how many coulmns  in the data set .
+
+# In[5]:
+
+
+df.shape
+
+
+# ## Data Type
+# 
+# ### Using Data Type to figure out what's our data type to know how to handel them later and gather a lot of information about missing values also 
+
+# In[6]:
+
+
+df.info()
+
+
+# ## Data Describe
+# 
+# ### Using Describe to gother some basic statical information about the data set 
+
+# In[7]:
+
+
+df.hist(figsize=(13,13));
+
+
+# In[4]:
+
+
+df.describe()
+
+
+# 
+# ### Data Cleaning
+# 
+# #### we will need to clean alot of columns and rows we need to drop some coulmns that we will not need in our investigating like (imdb_id,homepage,overview,tagline) and we need to clean some Data specially that data that contain alot of variabls seperated by "|" and deal with o value and nan value .
+# 
+# ##### Lets Start
+
+# In[9]:
+
+
+# After discussing the structure of the data and any problems that need to be
+#   cleaned, perform those cleaning steps in the second part of this section.
+df['revenue_adj'].replace(0, np.NAN, inplace=True)
+df['revenue'].replace(0, np.NAN, inplace=True)
+df['budget_adj'].replace(0, np.NAN, inplace=True)
+df['budget'].replace(0, np.NAN, inplace=True)
+df['runtime'].replace(0, np.NAN, inplace=True)
+
+df.dropna(axis=0, inplace=True)
+
+
+# ### check it there are any duplicate data .
+
+# In[10]:
+
+
+#removing duplicated data 
+df.duplicated().sum()
+
+
+# ### drop some useless columns 
+
+# In[11]:
+
+
+#drop some un needed columns
+df = df.drop(['imdb_id', 'homepage', 'overview', 'tagline'], axis=1)
+
+
+# ### check the data types to know which column i can use mathematical operations or what will need to adjust .
+
+# In[12]:
+
+
+#check the data type for later use when i need to know any column data type faster or covert the type for mathmatical operations later .
+df.dtypes
+
+
+# <a id='eda'></a>
+# ## Exploratory Data Analysis
+# 
+
+# ### Research Question 1- (Which year has the highest profit rate?)
+
+# first we will calculate the profit and add it to our df 
+# then use groupby to make adata frame that can be used in plot to show us the data
+
+# In[26]:
+
+
+# first we will calculate the profit and add it to our df 
+#then use groupby to make adata frame that can be used in plot to show us the data
+df['Profit'] = df['revenue'] - df['budget']
+print(df.groupby('release_year')['Profit'].describe())
+Year_Vs_Average_Profit=df.groupby('release_year')['Profit'].mean()
+Year_Vs_Average_Profit.head(100)
+Year_Vs_Average_Profit.plot(kind='bar')
+
+# setup the plot -  title and labels of the figure.
+plt.title("Year Vs Average Profit",fontsize = 14)
+plt.xlabel('Release year',fontsize = 13)
+plt.ylabel('Average Profit',fontsize = 13)
+#setup the size.
+sns.set(rc={'figure.figsize':(20,10)})
+sns.set_style("whitegrid")
+
+
+# #### - that clearly shows that year 1966 was a disaster to movies production market and the year 1995 was a brilliant year with ( 175 movies that mean profit of 3.59 ) and finally, in the year 2015, the mean profit was more than 3 after 2 years mean profit was less than 2.5  that means the movie production market is recovering and it's going for its peak it has good chance to invest in movie production.
+
+# ### Research Question 2 - Who is the most Apperance Actor ?
+
+# creat casts column after using  str then split to make the cast in alist then use explode attribute to make the data in better view
+
+# In[5]:
+
+
+casts_df = df.assign(casts=df['cast'].str.split('|'))
+casts_df=casts_df.explode('casts')
+casts_df.groupby('casts')['casts'].count().reset_index(name='count').sort_values(['count'], ascending= False)[:20].plot(kind='bar', x = 'casts', y ='count')
+plt.title("the most Apperance Actor",fontsize = 14)
+plt.xlabel('Actors',fontsize = 10)
+plt.ylabel('Apperance Amount',fontsize = 10)
+plt.xticks(rotation = '45', ha = 'right')
+
+
+# #### - After filtering the data it shows clearly that Robert De Niro is the most actor appears so he can be a part of our cast if we decide to invest in movie production.
+
+# ### Research Question 3  (How has changes in film production moved over time?)
+
+# Getting the release year count using groupby to know how many movies prodution each year .  
+
+# In[10]:
+
+
+#Getting the release year count using groupby to know how many movies prodution each year .  
+movies_amount=df.groupby('release_year').id.count()
+#making plot for the data frame to better visulization .
+movies_amount.plot(x='release_year', y='amount_of_mvies', kind='line', figsize=(20,10), title="Amount of movies over years", label="Amount of movies", )
+plt.xlabel('Year')
+plt.ylabel('Amount')
+movies_amount
+
+
+# #### - that clearly show that year 2000 was the massive start of movie production evolution and it start going up to the year 2011
+
+# ### Research Question 4 (Dose the movies with highr vote has better rating ?)
+
+# In[6]:
+
+
+#getting the vote count average 
+vote_count_average=df.describe().vote_count # mean is 947 vote so we can make it 1000 for better result  
+# print(vote_count_average)
+#Slice df to get 2 columns 'vote_count' and 'vote_average'
+df_vote = df.loc[:, 'vote_count' : 'vote_average']
+#To compare results with more than 1000 votes
+df_vote_mean = df_vote.query('vote_count>1000')    
+
+
+# In[7]:
+
+
+df_vote.plot(x='vote_count', y='vote_average', kind='scatter');
+plt.title("the most Apperance Actor",fontsize = 14)
+
+df_vote_mean.plot(x='vote_count', y='vote_average', kind='scatter');
+plt.title("vote count for movies with less than 1000 vote ",fontsize = 12)
+
+
+# In[13]:
+
+
+df_vote.corr()
+
+
+# In[14]:
+
+
+df_vote_mean.corr()
+
+
+# #### after comparing movies with vote less than 1000 with that have more than 1000 we found more voting doesn't mean better rating for the movie the difference wasn't that high while we use the low rate count sample with movies have rate count more than 1000
+
+# ### Research Question 5 (how does revenue change according to their budget ?)
+
+# In[5]:
+
+
+#make a scatter plot using 'regplot' between ''revenue' and 'budget'.
+ax = sns.regplot(x=df['revenue'], y=df['budget'],color='c')
+
+#set the title and labels of the figure
+ax.set_title("Revenue Vs Budget",fontsize=13)
+ax.set_xlabel("Revenue",fontsize=12)
+ax.set_ylabel("Budget",fontsize=12)
+#set the figure size
+sns.set(rc={'figure.figsize':(6,4)})
+sns.set_style("whitegrid")
+
+#find the correlation between them
+#change zero into NAN in budget and revenue column for the exact calculation.
+df['budget'] = df['budget'].replace(0,np.NAN)
+df['revenue'] = df['revenue'].replace(0,np.NAN)
+
+#find the correlation
+data_corr = df.corr()
+print("Correlation Between Revenue And Budget : ",data_corr.loc['revenue','budget'])
+
+
+# ####  that show  a strong relation , Revenue is directly connected to the budget.
+
+# ### Research Question 6 (What is the average votes distribution?)
+# The following code creates a boxplot which illustrates their mean which is 6
+
+# In[29]:
+
+
+#movie ratings' distribution all over the years
+# print(df.vote_average.describe())
+sns.set(rc={'figure.figsize':(15,15)}, font_scale=1.3)
+vote_df = df[["vote_average"]]
+sns.set_style("whitegrid")
+ax = sns.boxplot(x = vote_df.vote_average)
+ax.set(xlabel='average votes', title = 'average votes distribution')
+plt.show()
+
+
+# #### that boxplot show some data about vote average and the most important in our case is its mean vote is almost 6, min vote average is 1.5 and max vote average is 9.2 so if you want to choose a movie don't pick a movie with vote rate less than 6
+
+# <a id='conclusions'></a>
+# ## Conclusions
+# - and we figured that year 1969 is the most profit year
+# - the most apperance actor is Ropert de niro
+# - 2011 was the most year got movie production with 156 movie in this year and we can figure that from year 2000 we start product   away more movies than the last 40 years
+# - more voting dosn't mean better rating for the movie the difrent wasn't that high while we use the low rate count sample with movies have rate count more than 1000 
+# - Revenue is directly connected to the budget.
+# 
+# ## Limitation 
+# This dataset is very rich in information. Some limitations the dataset contains are null and zero values in some features, These zero and null values hinder the analysis and have to be removed the rows that correspond to these zero and null values.
+# 
+# the biggest challenge was the separator in some column data ('|') that made me try a very long code first and use some list functions and walked me away from pandas then I try some lambda options but I found it's not that cool it will add a lot of columns and I didn't like that then the reviewer hints me to use explode and it was great and that helped me a lot but it needs to update pandas and for some reason, it was not that easy IDK why I searched a lot to figure why I can't update pandas in jupyter but finally I got lucky and it's work and it was so easy and lure me to do more questions but unfortunately the time not in my side for now but I really want say (Thank you for this tip).
+# 
+# 
+# 
+# 
+
+# In[ ]:
+
+
+from subprocess import call
+call(['python', '-m', 'nbconvert', 'Investigate_a_Dataset.ipynb'])
+
